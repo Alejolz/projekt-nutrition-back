@@ -5,6 +5,7 @@ const {
   setUserState,
   initializeUser,
 } = require('../services/userStateService');
+const { set } = require('../app');
 
 /**
  * Maneja mensajes entrantes de WhatsApp
@@ -70,7 +71,8 @@ async function handleIncomingMessage(body) {
   if (userState.step === 'ia') {
     const respuesta = await responderIA(message);
     await sendText(from, respuesta);
-    return sendButtons(from, 'Volver al menú', 'Seguir hablando');
+    setUserState(from, { step: 'menu' }); 
+    // return sendButtons(from, 'Volver al menú', 'Seguir hablando');
   }
 
   // Si está en modo recetas
@@ -79,7 +81,8 @@ async function handleIncomingMessage(body) {
       `Dame una receta de ${message} que sea fácil y saludable`
     );
     await sendText(from, respuesta);
-    return sendButtons(from, 'Volver al menú', 'Otra receta');
+    setUserState(from, { step: 'menu' });
+    // return sendButtons(from, 'Volver al menú', 'Otra receta');
   }
 
   // Menú por defecto
