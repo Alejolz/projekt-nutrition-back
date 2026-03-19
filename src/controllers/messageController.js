@@ -69,20 +69,54 @@ async function handleIncomingMessage(body) {
 
   // Si está hablando con la IA
   if (userState.step === 'ia') {
+    // Manejar respuesta a los botones
+    if (message === 'Volver al menú') {
+      setUserState(from, { step: 'menu' });
+      return sendText(
+        from,
+        `¿Qué quieres hacer?\n\n` +
+          `1️⃣ 📸 Hablar con IA\n` +
+          `2️⃣ 🍽️ Pedir una receta\n` +
+          `3️⃣ 👤 Gestión de perfil\n\n` +
+          `Responde con el número de la opción 👇`
+      );
+    }
+
+    // Si presiona "Seguir hablando", no hacer nada especial, simplemente pedir la pregunta
+    if (message === 'Seguir hablando') {
+      return sendText(from, `🤖 Escribe tu pregunta y te respondo.`);
+    }
+
     const respuesta = await responderIA(message);
     await sendText(from, respuesta);
-    setUserState(from, { step: 'menu' }); 
-    // return sendButtons(from, 'Volver al menú', 'Seguir hablando');
+    return sendButtons(from, 'Volver al menú', 'Seguir hablando');
   }
 
   // Si está en modo recetas
   if (userState.step === 'recipe') {
+    // Manejar respuesta a los botones
+    if (message === 'Volver al menú') {
+      setUserState(from, { step: 'menu' });
+      return sendText(
+        from,
+        `¿Qué quieres hacer?\n\n` +
+          `1️⃣ 📸 Hablar con IA\n` +
+          `2️⃣ 🍽️ Pedir una receta\n` +
+          `3️⃣ 👤 Gestión de perfil\n\n` +
+          `Responde con el número de la opción 👇`
+      );
+    }
+
+    // Si presiona "Otra receta", no hacer nada especial, simplemente pedir el ingrediente
+    if (message === 'Otra receta') {
+      return sendText(from, `🍽️ ¿Qué receta quieres ahora? (ej: ensalada, pollo, postre)`);
+    }
+
     const respuesta = await responderIA(
       `Dame una receta de ${message} que sea fácil y saludable`
     );
     await sendText(from, respuesta);
-    setUserState(from, { step: 'menu' });
-    // return sendButtons(from, 'Volver al menú', 'Otra receta');
+    return sendButtons(from, 'Volver al menú', 'Otra receta');
   }
 
   // Menú por defecto
