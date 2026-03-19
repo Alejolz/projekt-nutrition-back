@@ -23,8 +23,3 @@ yarn-error.log*
 
 # OS
 Thumbs.db
-
-# Carpetas antiguas (después de refactoring) - solo raíz
-/IA/
-/whatsapp/
-/services/

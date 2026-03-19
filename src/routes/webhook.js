@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
     });
 
     await handleIncomingMessage(req.body);
-    res.sendStatus(200);
+    // res.sendStatus(200); Twilio espera una respuesta rápida, pero no es necesario enviar un mensaje de vuelta aquí
   } catch (error) {
     console.error('❌ Error en webhook:', error.message);
     res.sendStatus(500);
