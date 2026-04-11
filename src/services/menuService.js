@@ -8,12 +8,12 @@ const db = require('./database');
 /**
  * Obtiene un menú por su key_name
  * @param {string} keyName - Identificador único del menú
- * @returns {object} Menú con opciones
+ * @returns {object} Menú con opciones y tipo de acción
  */
 async function getMenu(keyName) {
   try {
     const results = await db.query(
-      `SELECT id, key_name, title, description, options
+      `SELECT id, key_name, title, description, options, action_type
        FROM menus 
        WHERE key_name = ? AND is_active = TRUE`,
       [keyName]
@@ -31,6 +31,7 @@ async function getMenu(keyName) {
       title: menu.title,
       description: menu.description,
       options: menu.options ? JSON.parse(menu.options) : [],
+      actionType: menu.action_type || 'navigate',
     };
   } catch (error) {
     console.error('❌ Error obteniendo menú:', error);

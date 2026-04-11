@@ -1,4 +1,5 @@
 const { sendText } = require('../services/whatsappService');
+const { responderIA } = require('../services/aiService');
 const {
   getUserState,
   setUserState,
@@ -11,8 +12,54 @@ const {
 } = require('../services/menuService');
 
 /**
+ * Handlers de acciones
+ * Cada acción ejecuta su lógica específica
+ */
+const actionHandlers = {
+  // Acción por defecto: solo navega entre menús
+  navigate: async (userId, message, menu) => {
+    return null; // No hace nada aquí, la navegación se maneja en handleIncomingMessage
+  },
+
+  // Chat con IA
+  chat: async (userId, message, menu) => {
+    const response = await responderIA(message);
+    await sendText(userId, response);
+    return { type: 'chat', response };
+  },
+
+  // Búsqueda de recetas (placeholder)
+  recipe: async (userId, message, menu) => {
+    // TODO: Implementar búsqueda de recetas
+    await sendText(userId, 'Funcionalidad de recetas en construcción 🔧');
+    return { type: 'recipe' };
+  },
+
+  // Gestión de perfil (placeholder)
+  profile: async (userId, message, menu) => {
+    // TODO: Implementar gestión de perfil
+    await sendText(userId, 'Gestión de perfil en construcción 🔧');
+    return { type: 'profile' };
+  },
+};
+
+/**
+ * Ejecuta una acción según su tipo
+ */
+async function executeAction(actionType, userId, message, menu) {
+  const handler = actionHandlers[actionType];
+
+  if (!handler) {
+    console.warn(`⚠️ Handler no encontrado para acción: ${actionType}`);
+    return null;
+  }
+
+  return await handler(userId, message, menu);
+}
+
+/**
  * Maneja mensajes entrantes de WhatsApp
- * Flujo: obtener estado → validar opción → mostrar siguiente menú
+ * Flujo: obtener estado → ejecutar acción → cambiar menú
  */
 async function handleIncomingMessage(body) {
   const from = body.From.replace('whatsapp:', '');
@@ -37,7 +84,7 @@ async function handleIncomingMessage(body) {
       return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
     }
 
-    // 3. Validar si la respuesta es válida
+    // 3. Validar si la respuesta es una opción válida del menú
     const validOption = validateMenuResponse(currentMenu, message);
 
     if (!validOption) {
@@ -50,15 +97,27 @@ async function handleIncomingMessage(body) {
     // 4. Obtener siguiente menú
     const { option } = validOption;
     const nextMenuKey = option.next_menu;
+    const nextMenu = await getMenu(nextMenuKey);
 
-    // 5. Actualizar estado del usuario
+    if (!nextMenu) {
+      return sendText(from, '❌ Menú siguiente no disponible.');
+    }
+
+    // 5. Ejecutar acción según tipo
+    const actionType = nextMenu.actionType || 'navigate';
+    await executeAction(actionType, from, message, nextMenu);
+
+    // 6. Actualizar estado del usuario
     await setUserState(from, nextMenuKey, {
       previousMenu: userState.step,
       selectedOption: option.label,
     });
 
-    // 6. Mostrar siguiente menú
-    await showMenu(from, nextMenuKey);
+    // 7. Si es navegación, mostrar el siguiente menú
+    // Si es otra acción, el handler ya envió la respuesta
+    if (actionType === 'navigate') {
+      await showMenu(from, nextMenuKey);
+    }
 
   } catch (error) {
     console.error('❌ Error manejando mensaje:', error);
