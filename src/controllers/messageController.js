@@ -1,14 +1,18 @@
-const { sendText, sendButtons } = require('../services/whatsappService');
-const { responderIA } = require('../services/aiService');
+const { sendText } = require('../services/whatsappService');
 const {
   getUserState,
   setUserState,
   initializeUser,
 } = require('../services/userStateService');
-const { set } = require('../app');
+const {
+  getMenu,
+  formatMenuForWhatsApp,
+  validateMenuResponse,
+} = require('../services/menuService');
 
 /**
  * Maneja mensajes entrantes de WhatsApp
+ * Flujo: obtener estado → validar opción → mostrar siguiente menú
  */
 async function handleIncomingMessage(body) {
   const from = body.From.replace('whatsapp:', '');
@@ -16,113 +20,76 @@ async function handleIncomingMessage(body) {
 
   if (!message) return;
 
-  let userState = getUserState(from);
+  try {
+    // 1. Obtener estado del usuario
+    let userState = await getUserState(from);
 
-  // Si no hay estado, inicializar
-  if (!userState) {
-    initializeUser(from);
-    return sendText(
-      from,
-      `👋 ¡Hola!\n\n` +
-        `¿Qué quieres hacer?\n\n` +
-        `1️⃣ 📸 Hablar con IA\n` +
-        `2️⃣ 🍽️ Pedir una receta\n` +
-        `3️⃣ 👤 Gestión de perfil\n\n` +
-        `Responde con el número de la opción 👇`
-    );
+    // Si es primer mensaje, inicializar en menú principal
+    if (!userState) {
+      await initializeUser(from);
+      return showMenu(from, 'main_menu');
+    }
+
+    // 2. Obtener menú actual del usuario
+    const currentMenu = await getMenu(userState.step);
+
+    if (!currentMenu) {
+      return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
+    }
+
+    // 3. Validar si la respuesta es válida
+    const validOption = validateMenuResponse(currentMenu, message);
+
+    if (!validOption) {
+      return sendText(
+        from,
+        `❌ Opción no válida.\n\nResponde con el número (1, 2, 3...) de tu opción`
+      );
+    }
+
+    // 4. Obtener siguiente menú
+    const { option } = validOption;
+    const nextMenuKey = option.next_menu;
+
+    // 5. Actualizar estado del usuario
+    await setUserState(from, nextMenuKey, {
+      previousMenu: userState.step,
+      selectedOption: option.label,
+    });
+
+    // 6. Mostrar siguiente menú
+    await showMenu(from, nextMenuKey);
+
+  } catch (error) {
+    console.error('❌ Error manejando mensaje:', error);
+    return sendText(from, '❌ Error procesando tu mensaje. Intenta de nuevo.');
   }
+}
 
-  // Si está en el menú
-  if (userState.step === 'menu') {
-    if (message === '1') {
-      setUserState(from, { step: 'ia' });
-      return sendText(
-        from,
-        `🤖 Modo IA activado\n\n` +
-          `Escribe lo que quieras preguntar sobre nutrición, recetas o salud.`
-      );
+/**
+ * Muestra un menú al usuario
+ * @param {string} userId - ID del usuario (número WhatsApp)
+ * @param {string} menuKey - Identificador del menú a mostrar
+ */
+async function showMenu(userId, menuKey) {
+  try {
+    const menu = await getMenu(menuKey);
+
+    if (!menu) {
+      return sendText(userId, '❌ Menú no disponible');
     }
 
-    if (message === '2') {
-      setUserState(from, { step: 'recipe' });
-      return sendText(
-        from,
-        `🍽️ Modo Recetas activado\n\n` +
-          `¿Qué tipo de receta buscas? (ej: ensalada, pollo, postre)`
-      );
-    }
+    // Formatear y enviar el menú
+    const text = formatMenuForWhatsApp(menu);
+    await sendText(userId, text);
 
-    if (message === '3') {
-      setUserState(from, { step: 'profile' });
-      return sendText(
-        from,
-        `👤 Gestión de perfil\n\n` +
-          `Opción aún en desarrollo. Vuelve pronto.`
-      );
-    }
-
-    return sendText(
-      from,
-      `❌ Opción no válida\n\nResponde con *1*, *2* o *3* para elegir una opción.`
-    );
+  } catch (error) {
+    console.error('❌ Error mostrando menú:', error);
+    return sendText(userId, '❌ Error mostrando el menú. Intenta de nuevo.');
   }
-
-  // Si está hablando con la IA
-  if (userState.step === 'ia') {
-    // Manejar respuesta a los botones
-    if (message === 'Volver al menú') {
-      setUserState(from, { step: 'menu' });
-      return sendText(
-        from,
-        `¿Qué quieres hacer?\n\n` +
-          `1️⃣ 📸 Hablar con IA\n` +
-          `2️⃣ 🍽️ Pedir una receta\n` +
-          `3️⃣ 👤 Gestión de perfil\n\n` +
-          `Responde con el número de la opción 👇`
-      );
-    }
-
-    // Si presiona "Seguir hablando", no hacer nada especial, simplemente pedir la pregunta
-    if (message === 'Seguir hablando') {
-      return sendText(from, `🤖 Escribe tu pregunta y te respondo.`);
-    }
-
-    const respuesta = await responderIA(message);
-    await sendText(from, respuesta);
-    return sendButtons(from, 'Volver al menú', 'Seguir hablando');
-  }
-
-  // Si está en modo recetas
-  if (userState.step === 'recipe') {
-    // Manejar respuesta a los botones
-    if (message === 'Volver al menú') {
-      setUserState(from, { step: 'menu' });
-      return sendText(
-        from,
-        `¿Qué quieres hacer?\n\n` +
-          `1️⃣ 📸 Hablar con IA\n` +
-          `2️⃣ 🍽️ Pedir una receta\n` +
-          `3️⃣ 👤 Gestión de perfil\n\n` +
-          `Responde con el número de la opción 👇`
-      );
-    }
-
-    // Si presiona "Otra receta", no hacer nada especial, simplemente pedir el ingrediente
-    if (message === 'Otra receta') {
-      return sendText(from, `🍽️ ¿Qué receta quieres ahora? (ej: ensalada, pollo, postre)`);
-    }
-
-    const respuesta = await responderIA(
-      `Dame una receta de ${message} que sea fácil y saludable`
-    );
-    await sendText(from, respuesta);
-    return sendButtons(from, 'Volver al menú', 'Otra receta');
-  }
-
-  // Menú por defecto
-  return sendText(from, `Opción no reconocida. Responde con *1*, *2* o *3*.`);
 }
 
 module.exports = {
   handleIncomingMessage,
+  showMenu,
 };

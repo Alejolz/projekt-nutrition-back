@@ -1,6 +1,7 @@
 const express = require('express');
 const config = require('./config/env');
 const webhookRoutes = require('./routes/webhook');
+const { initializePool } = require('./services/database');
 
 const app = express();
 
@@ -8,9 +9,23 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
+// Inicializar pool de BD al arrancar
+let dbReady = false;
+initializePool()
+  .then(() => {
+    dbReady = true;
+  })
+  .catch(error => {
+    console.error('Error inicializando BD:', error);
+  });
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: dbReady ? 'OK' : 'BD no lista',
+    timestamp: new Date().toISOString(),
+    database: dbReady ? 'Conectado' : 'Desconectado',
+  });
 });
 
 // Rutas
