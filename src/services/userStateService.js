@@ -41,6 +41,13 @@ async function setUserState(userId, step, stepData = {}) {
   try {
     const stepDataJson = JSON.stringify(stepData);
 
+    console.log(`📝 Intentando crear/actualizar user_state:`, {
+      userId,
+      step,
+      stepData,
+      stepDataJson,
+    });
+
     // Verificar si el usuario ya existe
     const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [userId]);
 
@@ -52,6 +59,7 @@ async function setUserState(userId, step, stepData = {}) {
       );
     } else {
       // Insertar nuevo estado
+      console.log(`📝 Insertando nuevo user_state para: ${userId}, step: ${step}`);
       await db.query(
         'INSERT INTO user_states (user_id, current_step, step_data) VALUES ($1, $2, $3)',
         [userId, step, stepDataJson]
