@@ -1,25 +1,30 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const config = require('../config/env');
 
 let pool = null;
 
 /**
- * Inicializa el pool de conexiones a MySQL
+ * Inicializa el pool de conexiones a PostgreSQL
  */
 async function initializePool() {
   if (pool) return pool;
 
-  pool = mysql.createPool({
+  pool = new Pool({
     host: config.database.host,
+    port: config.database.port,
     user: config.database.user,
     password: config.database.password,
     database: config.database.name,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
   });
 
-  console.log('✅ Pool de conexiones MySQL inicializado');
+  pool.on('error', (err) => {
+    console.error('❌ Error en pool PostgreSQL:', err);
+  });
+
+  console.log('✅ Pool de conexiones PostgreSQL inicializado');
   return pool;
 }
 
@@ -30,7 +35,7 @@ async function getConnection() {
   if (!pool) {
     await initializePool();
   }
-  return pool.getConnection();
+  return pool.connect();
 }
 
 /**
@@ -39,8 +44,8 @@ async function getConnection() {
 async function query(sql, values = []) {
   const connection = await getConnection();
   try {
-    const [results] = await connection.execute(sql, values);
-    return results;
+    const result = await connection.query(sql, values);
+    return result.rows;
   } finally {
     connection.release();
   }
@@ -53,7 +58,7 @@ async function closePool() {
   if (pool) {
     await pool.end();
     pool = null;
-    console.log('❌ Pool de conexiones MySQL cerrado');
+    console.log('❌ Pool de conexiones PostgreSQL cerrado');
   }
 }
 
