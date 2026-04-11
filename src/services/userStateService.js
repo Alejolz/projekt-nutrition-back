@@ -11,7 +11,7 @@ const db = require('./database');
 async function getUserState(userId) {
   try {
     const results = await db.query(
-      'SELECT id, user_id, current_step, step_data, created_at, updated_at FROM user_states WHERE user_id = ?',
+      'SELECT id, user_id, current_step, step_data, created_at, updated_at FROM user_states WHERE user_id = $1',
       [userId]
     );
 
@@ -42,18 +42,18 @@ async function setUserState(userId, step, stepData = {}) {
     const stepDataJson = JSON.stringify(stepData);
 
     // Verificar si el usuario ya existe
-    const existing = await db.query('SELECT id FROM user_states WHERE user_id = ?', [userId]);
+    const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [userId]);
 
     if (existing.length > 0) {
       // Actualizar estado existente
       await db.query(
-        'UPDATE user_states SET current_step = ?, step_data = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?',
+        'UPDATE user_states SET current_step = $1, step_data = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3',
         [step, stepDataJson, userId]
       );
     } else {
       // Insertar nuevo estado
       await db.query(
-        'INSERT INTO user_states (user_id, current_step, step_data) VALUES (?, ?, ?)',
+        'INSERT INTO user_states (user_id, current_step, step_data) VALUES ($1, $2, $3)',
         [userId, step, stepDataJson]
       );
     }
@@ -83,7 +83,7 @@ async function initializeUser(userId) {
  */
 async function clearUserState(userId) {
   try {
-    await db.query('DELETE FROM user_states WHERE user_id = ?', [userId]);
+    await db.query('DELETE FROM user_states WHERE user_id = $1', [userId]);
     return true;
   } catch (error) {
     console.error('Error limpiando estado del usuario:', error);
@@ -97,7 +97,7 @@ async function clearUserState(userId) {
 async function getUsersByStep(step) {
   try {
     const results = await db.query(
-      'SELECT user_id, current_step, step_data FROM user_states WHERE current_step = ?',
+      'SELECT user_id, current_step, step_data FROM user_states WHERE current_step = $1',
       [step]
     );
 

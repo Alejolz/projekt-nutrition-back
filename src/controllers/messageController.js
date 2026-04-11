@@ -139,7 +139,9 @@ async function showMenu(userId, menuKey) {
     }
 
     // Formatear y enviar el menú
+    console.log(' Mostrando menú:', menu)
     const text = formatMenuForWhatsApp(menu);
+    console.log (' Menu formateado para WhatsApp:\n', text);
     await sendText(userId, text);
 
   } catch (error) {

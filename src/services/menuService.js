@@ -15,7 +15,7 @@ async function getMenu(keyName) {
     const results = await db.query(
       `SELECT id, key_name, title, description, options, action_type
        FROM menus 
-       WHERE key_name = ? AND is_active = TRUE`,
+       WHERE key_name = $1 AND is_active = TRUE`,
       [keyName]
     );
 
