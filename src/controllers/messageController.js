@@ -59,7 +59,7 @@ async function executeAction(actionType, userId, message, menu) {
 
 /**
  * Maneja mensajes entrantes de WhatsApp
- * Flujo: obtener estado → ejecutar acción → cambiar menú
+ * Flujo: obtener estado → cambiar estado → mostrar menú o ejecutar acción en siguiente mensaje
  */
 async function handleIncomingMessage(body) {
   const from = body.From.replace('whatsapp:', '');
@@ -93,16 +93,21 @@ Solo responde con el número de la opción que deseas elegir.`;
       return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
     }
 
-    // 3. SI ESTÁ EN UNA ACCIÓN (no navegación): Volver al menú principal
+    // 3. SI EL USUARIO ESTÁ EN MODO CHAT: Procesar el mensaje con IA
+    if (currentMenu.actionType === 'chat') {
+      return await executeAction('chat', from, message, currentMenu);
+    }
+
+    // 4. SI ESTÁ EN OTRA ACCIÓN (recipe, profile): Volver al menú principal
     // Esto evita repetir la acción si el usuario vuelve después de tiempo
     if (currentMenu.actionType !== 'navigate') {
-      // Estaba en chat, recipe o profile - mostrar menú principal
+      // Estaba en recipe o profile - mostrar menú principal
       await sendText(from, '¿En qué más puedo ayudarte? 😊');
       await setUserState(from, 'main_menu', {});
       return showMenu(from, 'main_menu');
     }
 
-    // 4. Validar si la respuesta es una opción válida del menú
+    // 5. Validar si la respuesta es una opción válida del menú
     const validOption = validateMenuResponse(currentMenu, message);
 
     if (!validOption) {
@@ -111,7 +116,7 @@ Solo responde con el número de la opción que deseas elegir.`;
       return showMenu(from, userState.step);
     }
 
-    // 5. Obtener siguiente menú
+    // 6. Obtener siguiente menú
     const { option } = validOption;
     const nextMenuKey = option.next;
     const nextMenu = await getMenu(nextMenuKey);
@@ -122,26 +127,30 @@ Solo responde con el número de la opción que deseas elegir.`;
 
     }
 
-    // 6. Ejecutar acción según tipo
+    // 7. PRIMERO: Actualizar estado del usuario
     const actionType = nextMenu.actionType || 'navigate';
-    const actionResult = await executeAction(actionType, from, message, nextMenu);
-
-    if (!actionResult){
-      console.log(' Acción ejecutada sin resultado específico, mostrando mismo menú.');
-      await sendText(from, '❌ Acción no disponible.');
-      return showMenu(from, userState.step);
-    }
-
-    // 7. Actualizar estado del usuario
     await setUserState(from, nextMenuKey, {
       previousMenu: userState.step,
       selectedOption: option.text,
     });
 
     // 8. Si es navegación, mostrar el siguiente menú
-    // Si es otra acción, el handler ya envió la respuesta
     if (actionType === 'navigate') {
-      await showMenu(from, nextMenuKey);
+      return await showMenu(from, nextMenuKey);
+    }
+
+    // 9. Si es IA/chat, enviar mensaje de bienvenida y esperar próximo mensaje
+    if (actionType === 'chat') {
+      return await sendText(from, '¡Perfecto! 😊 Ahora ya puedes escribirme libremente sobre nutrición y te ayudaré con lo que necesites. \n\n¿Cuál es tu pregunta? 📝');
+    }
+
+    // 10. Para otras acciones, ejecutar el handler
+    const actionResult = await executeAction(actionType, from, message, nextMenu);
+
+    if (!actionResult){
+      console.log(' Acción ejecutada sin resultado específico.');
+      await sendText(from, '❌ Acción no disponible.');
+      return showMenu(from, userState.step);
     }
 
   } catch (error) {
