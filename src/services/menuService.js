@@ -24,6 +24,8 @@ async function getMenu(keyName) {
       return null;
     }
 
+    console.log('resultados', results)
+
     const menu = results[0];
     return {
       id: menu.id,
@@ -34,7 +36,7 @@ async function getMenu(keyName) {
       actionType: menu.action_type || 'navigate',
     };
   } catch (error) {
-    console.error('❌ Error obteniendo menú:', error);
+    console.error('❌ Error obteniendo menú:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
