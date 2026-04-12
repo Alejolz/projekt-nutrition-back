@@ -25,6 +25,7 @@ async function getMenu(keyName) {
     }
 
     console.log('resultados', results)
+    console.log('opciones', results[0].options)
 
     const menu = results[0];
     return {
@@ -32,11 +33,16 @@ async function getMenu(keyName) {
       keyName: menu.key_name,
       title: menu.title,
       description: menu.description,
-      options: menu.options ? JSON.parse(menu.options) : [],
+      options: menu.options || [],
       actionType: menu.action_type || 'navigate',
     };
-  } catch (error) {
-    console.error('❌ Error obteniendo menú:', JSON.stringify(error, null, 2));
+  } catch (error) {}
+    console.error('❌ Error obteniendo menú:', error);
+    console.error('❌ Error obteniendo menú:', JSON.stringify({
+      message: error?.message || String(error),
+      code: error?.code,
+      stack: error?.stack,
+    }, null, 2));
     throw error;
   }
 }
