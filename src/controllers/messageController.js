@@ -93,36 +93,44 @@ Solo responde con el número de la opción que deseas elegir.`;
       return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
     }
 
-    // 3. Validar si la respuesta es una opción válida del menú
+    // 3. SI ESTÁ EN UNA ACCIÓN (no navegación): Volver al menú principal
+    // Esto evita repetir la acción si el usuario vuelve después de tiempo
+    if (currentMenu.actionType !== 'navigate') {
+      // Estaba en chat, recipe o profile - mostrar menú principal
+      await sendText(from, '¿En qué más puedo ayudarte? 😊');
+      await setUserState(from, 'main_menu', {});
+      return showMenu(from, 'main_menu');
+    }
+
+    // 4. Validar si la respuesta es una opción válida del menú
     const validOption = validateMenuResponse(currentMenu, message);
 
     if (!validOption) {
-      return sendText(
-        from,
-        `❌ Opción no válida.\n\nResponde con el número (1, 2, 3...) de tu opción`
-      );
+      // "No te he entendido" + repetir el menú actual
+      await sendText(from, 'Perdón, no entendí tu mensaje 😅\n\nIntenta de nuevo:');
+      return showMenu(from, userState.step);
     }
 
-    // 4. Obtener siguiente menú
+    // 5. Obtener siguiente menú
     const { option } = validOption;
-    const nextMenuKey = option.next_menu;
+    const nextMenuKey = option.next;
     const nextMenu = await getMenu(nextMenuKey);
 
     if (!nextMenu) {
       return sendText(from, '❌ Menú siguiente no disponible.');
     }
 
-    // 5. Ejecutar acción según tipo
+    // 6. Ejecutar acción según tipo
     const actionType = nextMenu.actionType || 'navigate';
     await executeAction(actionType, from, message, nextMenu);
 
-    // 6. Actualizar estado del usuario
+    // 7. Actualizar estado del usuario
     await setUserState(from, nextMenuKey, {
       previousMenu: userState.step,
-      selectedOption: option.label,
+      selectedOption: option.text,
     });
 
-    // 7. Si es navegación, mostrar el siguiente menú
+    // 8. Si es navegación, mostrar el siguiente menú
     // Si es otra acción, el handler ya envió la respuesta
     if (actionType === 'navigate') {
       await showMenu(from, nextMenuKey);
