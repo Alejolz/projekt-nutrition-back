@@ -29,7 +29,7 @@ async function getUserState(userId) {
       updatedAt: userState.updated_at,
     };
   } catch (error) {
-    console.error('Error obteniendo estado del usuario:', error);
+    console.error('❌ Error obteniendo estado del usuario:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -45,17 +45,19 @@ async function setUserState(userId, step, stepData = {}) {
     
     const stepDataJson = JSON.stringify(stepData);
 
-    console.log(`📝 Intentando crear/actualizar user_state:`, {
+    // Verificar si el usuario ya existe
+    const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [normalizedUserId]);
+
+    console.log('usuario', existing)
+
+    if (existing.length > 0) {
+
+      console.log(`📝 Intentando crear/actualizar user_state:`, {
       originalUserId: userId,
       normalizedUserId,
       step,
       stepData,
     });
-
-    // Verificar si el usuario ya existe
-    const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [normalizedUserId]);
-
-    if (existing.length > 0) {
       // Actualizar estado existente
       await db.query(
         'UPDATE user_states SET current_step = $1, step_data = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3',
@@ -71,9 +73,9 @@ async function setUserState(userId, step, stepData = {}) {
     }
 
     // Retornar el estado actualizado
-    return getUserState(normalizedUserId);
+    // return getUserState(normalizedUserId);
   } catch (error) {
-    console.error('Error estableciendo estado del usuario:', error);
+    console.error('Error estableciendo estado del usuario:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -83,9 +85,9 @@ async function setUserState(userId, step, stepData = {}) {
  */
 async function initializeUser(userId) {
   try {
-    return await setUserState(userId, 'menu', {});
+    return await setUserState(userId, 'main_menu', {});
   } catch (error) {
-    console.error('Error inicializando usuario:', error);
+    console.error('Error inicializando usuario:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -98,7 +100,7 @@ async function clearUserState(userId) {
     await db.query('DELETE FROM user_states WHERE user_id = $1', [userId]);
     return true;
   } catch (error) {
-    console.error('Error limpiando estado del usuario:', error);
+    console.error('Error limpiando estado del usuario:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -119,7 +121,7 @@ async function getUsersByStep(step) {
       stepData: row.step_data ? JSON.parse(row.step_data) : {},
     }));
   } catch (error) {
-    console.error('Error obteniendo usuarios con step:', error);
+    console.error('Error obteniendo usuarios con step:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -137,7 +139,7 @@ async function getUserStats() {
 
     return results;
   } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
+    console.error('Error obteniendo estadísticas:', JSON.stringify(error, null, 2));
     throw error;
   }
 }
