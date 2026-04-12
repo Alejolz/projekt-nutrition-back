@@ -9,11 +9,15 @@ const db = require('./database');
  * Obtiene el estado del usuario desde la BD
  */
 async function getUserState(userId) {
+
+  const normalizedUserId = userId.replace(/^\+57/, '');
   try {
     const results = await db.query(
       'SELECT id, user_id, current_step, step_data, created_at, updated_at FROM user_states WHERE user_id = $1',
-      [userId]
+      [normalizedUserId]
     );
+
+    console.log('estado usuario', results)
 
     if (results.length === 0) {
       return null;
