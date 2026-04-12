@@ -90,7 +90,8 @@ Solo responde con el número de la opción que deseas elegir.`;
     const currentMenu = await getMenu(userState.step);
 
     if (!currentMenu) {
-      return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
+      await sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
+      return showMenu(from, userState.step);
     }
 
     // 3. SI ESTÁ EN UNA ACCIÓN (no navegación): Volver al menú principal
@@ -117,7 +118,7 @@ Solo responde con el número de la opción que deseas elegir.`;
     const nextMenu = await getMenu(nextMenuKey);
 
     if (!nextMenu) {
-      return sendText(from, '❌ Menú siguiente no disponible.');
+      return sendText(from, '❌ Menú no disponible.');
     }
 
     // 6. Ejecutar acción según tipo
