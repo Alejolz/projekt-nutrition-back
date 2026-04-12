@@ -36,38 +36,42 @@ async function getUserState(userId) {
 
 /**
  * Establece/actualiza el estado del usuario
+ * Normaliza el userId removiendo el código de país (+57)
  */
 async function setUserState(userId, step, stepData = {}) {
   try {
+    // Normalizar userId: remover +57 si existe
+    const normalizedUserId = userId.replace(/^\+57/, '');
+    
     const stepDataJson = JSON.stringify(stepData);
 
     console.log(`📝 Intentando crear/actualizar user_state:`, {
-      userId,
+      originalUserId: userId,
+      normalizedUserId,
       step,
       stepData,
-      stepDataJson,
     });
 
     // Verificar si el usuario ya existe
-    const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [userId]);
+    const existing = await db.query('SELECT id FROM user_states WHERE user_id = $1', [normalizedUserId]);
 
     if (existing.length > 0) {
       // Actualizar estado existente
       await db.query(
         'UPDATE user_states SET current_step = $1, step_data = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3',
-        [step, stepDataJson, userId]
+        [step, stepDataJson, normalizedUserId]
       );
     } else {
       // Insertar nuevo estado
-      console.log(`📝 Insertando nuevo user_state para: ${userId}, step: ${step}`);
+      console.log(`📝 Insertando nuevo user_state para: ${normalizedUserId}, step: ${step}`);
       await db.query(
         'INSERT INTO user_states (user_id, current_step, step_data) VALUES ($1, $2, $3)',
-        [userId, step, stepDataJson]
+        [normalizedUserId, step, stepDataJson]
       );
     }
 
     // Retornar el estado actualizado
-    return getUserState(userId);
+    return getUserState(normalizedUserId);
   } catch (error) {
     console.error('Error estableciendo estado del usuario:', error);
     throw error;
