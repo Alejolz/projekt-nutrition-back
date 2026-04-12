@@ -45,7 +45,7 @@ async function getMenu(keyName) {
     }, null, 2));
     throw error;
   }
-}
+
 
 /**
  * Formatea un menú para enviar a WhatsApp
