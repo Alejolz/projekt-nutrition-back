@@ -36,8 +36,7 @@ async function getMenu(keyName) {
       options: menu.options || [],
       actionType: menu.action_type || 'navigate',
     };
-  } catch (error) {}
-    console.error('❌ Error obteniendo menú:', error);
+  } catch (error) {
     console.error('❌ Error obteniendo menú:', JSON.stringify({
       message: error?.message || String(error),
       code: error?.code,
@@ -45,6 +44,7 @@ async function getMenu(keyName) {
     }, null, 2));
     throw error;
   }
+}
 
 
 /**
@@ -56,18 +56,14 @@ function formatMenuForWhatsApp(menu) {
 
   let text = '';
 
-  if (menu.title) {
-    text += `📋 *${menu.title}*\n`;
-  }
-
   if (menu.description) {
-    text += `\n${menu.description}\n`;
+    text += `${menu.description}\n`;
   }
 
   if (menu.options && menu.options.length > 0) {
     text += '\n';
-    menu.options.forEach((option, index) => {
-      text += `${index + 1}️⃣ ${option.label}\n`;
+    menu.options.forEach((option) => {
+      text += `${option.option}️⃣ ${option.text}\n`;
     });
     text += '\nResponde con el número de tu opción 👇';
   }
@@ -81,23 +77,24 @@ function validateMenuResponse(menu, userInput) {
   const response = userInput.trim();
 
   // Validar por número (1, 2, 3...)
-  const optionIndex = parseInt(response) - 1;
-  if (!isNaN(optionIndex) && optionIndex >= 0 && optionIndex < menu.options.length) {
-    return {
-      index: optionIndex,
-      option: menu.options[optionIndex],
-    };
-  }
-
-  // Validar por label exacto (case-insensitive)
-  const selectedOption = menu.options.find(
-    opt => opt.label.toLowerCase() === response.toLowerCase()
-  );
-
+  const selectedOption = menu.options.find(opt => opt.option === response);
+  
   if (selectedOption) {
     return {
       index: menu.options.indexOf(selectedOption),
       option: selectedOption,
+    };
+  }
+
+  // Validar por texto exacto (case-insensitive)
+  const selectedByText = menu.options.find(
+    opt => opt.text.toLowerCase().includes(response.toLowerCase())
+  );
+
+  if (selectedByText) {
+    return {
+      index: menu.options.indexOf(selectedByText),
+      option: selectedByText,
     };
   }
 
