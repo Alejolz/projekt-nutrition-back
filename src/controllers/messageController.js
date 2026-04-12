@@ -124,7 +124,13 @@ Solo responde con el número de la opción que deseas elegir.`;
 
     // 6. Ejecutar acción según tipo
     const actionType = nextMenu.actionType || 'navigate';
-    await executeAction(actionType, from, message, nextMenu);
+    const actionResult = await executeAction(actionType, from, message, nextMenu);
+
+    if (!actionResult){
+      console.log(' Acción ejecutada sin resultado específico, mostrando mismo menú.');
+      await sendText(from, '❌ Acción no disponible.');
+      return showMenu(from, userState.step);
+    }
 
     // 7. Actualizar estado del usuario
     await setUserState(from, nextMenuKey, {
