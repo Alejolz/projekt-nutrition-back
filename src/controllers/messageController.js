@@ -78,9 +78,9 @@ async function handleIncomingMessage(body) {
       // Enviar mensaje de bienvenida
       const welcomeMessage = `Hola! 🖐️ Soy NutriBot 🤖, tu asistente virtual de nutrición\nGracias por contactarte conmigo 😊
 
-🌟   ¡Quiero contarte algo genial! Ahora podrás hablar conmigo de manera más fácil y rápida.
+🌟 ¡Quiero contarte algo genial! Ahora podrás hablar conmigo de manera más fácil y rápida.
 
-      Solo responde con el número de la opción que deseas elegir.`;
+Solo responde con el número de la opción que deseas elegir.`;
       
       await sendText(from, welcomeMessage);
       return showMenu(from, 'main_menu');

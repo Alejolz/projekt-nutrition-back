@@ -28,7 +28,7 @@ async function getUserState(userId) {
       id: userState.id,
       userId: userState.user_id,
       step: userState.current_step,
-      stepData: userState.step_data ? JSON.parse(userState.step_data) : {},
+      stepData: userState.step_data || {},
       createdAt: userState.created_at,
       updatedAt: userState.updated_at,
     };
