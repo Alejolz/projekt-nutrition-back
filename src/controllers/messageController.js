@@ -4,6 +4,7 @@ const {
   getUserState,
   setUserState,
   initializeUser,
+  clearUserState
 } = require('../services/userStateService');
 const {
   getMenu,
@@ -12,146 +13,177 @@ const {
 } = require('../services/menuService');
 
 /**
- * Handlers de acciones
- * Cada acción ejecuta su lógica específica
+ * Handlers de acciones — cada acción define su bienvenida (onEnter) y su lógica (onMessage)
  */
 const actionHandlers = {
-  // Acción por defecto: solo navega entre menús
-  navigate: async (userId, message, menu) => {
-    return null; // No hace nada aquí, la navegación se maneja en handleIncomingMessage
+  chat: {
+    onEnter: async (userId, menu) => {
+      await sendText(userId, '¡Perfecto! 😊 Ahora puedes escribirme libremente sobre nutrición.\n\n¿Cuál es tu pregunta? 📝');
+      await setUserState(userId, menu.keyName, {
+        previousMenu: menu.keyName,
+        chatReady: false, // indica que el usuario aún no ha recibido respuesta de la IA
+      });
+    },
+    onMessage: async (userId, message, menu, userState) => {
+      // Si aún no ha recibido ninguna respuesta → todo va a la IA sin validar opciones
+      if (!userState.chatReady) {
+        const response = await responderIA(message);
+        await sendText(userId, response);
+        await setUserState(userId, menu.keyName, {
+          ...userState,
+          chatReady: true,
+        });
+        return showMenu(userId, menu.keyName);
+      }
+
+      // Ya vio el mini-menú → validar si eligió una opción
+      const validOption = validateMenuResponse(menu, message);
+
+      if (validOption) {
+        const { option } = validOption;
+
+        // Sin "next" = seguir hablando → resetear chatReady para la próxima pregunta
+        if (!option.next) {
+          await setUserState(userId, menu.keyName, {
+            ...userState,
+            chatReady: false,
+          });
+          await sendText(userId, '¡Perfecto! ¿Cuál es tu siguiente pregunta? 📝');
+          return;
+        }
+
+        // Con "next" = navegar (ej: volver al menú principal)
+        const nextMenu = await getMenu(option.next);
+        if (!nextMenu) {
+          await sendText(userId, '❌ Menú no disponible.');
+          return showMenu(userId, menu.keyName);
+        }
+
+        await setUserState(userId, option.next, { previousMenu: menu.keyName });
+        return showMenu(userId, option.next);
+      }
+
+      // No eligió opción válida → repetir mini-menú
+      await sendText(userId, 'Perdón, no entendí tu mensaje 😅\n\nIntenta de nuevo:');
+      return showMenu(userId, menu.keyName);
+    },
   },
 
-  // Chat con IA
-  chat: async (userId, message, menu) => {
-    const response = await responderIA(message);
-    await sendText(userId, response);
-    return { type: 'chat', response };
+  recipe: {
+    onEnter: async (userId, menu) => {
+      // TODO: cuando esté implementado, mostrar bienvenida de recetas
+      await sendText(userId, 'Funcionalidad de recetas en construcción 🔧');
+      await setUserState(userId, 'main_menu', { previousMenu: menu.keyName });
+      await showMenu(userId, 'main_menu');
+    },
+    onMessage: async (userId, message, menu, userState) => {
+      // TODO: procesar búsqueda de receta
+    },
   },
 
-  // Búsqueda de recetas (placeholder)
-  recipe: async (userId, message, menu) => {
-    // TODO: Implementar búsqueda de recetas
-    await sendText(userId, 'Funcionalidad de recetas en construcción 🔧');
-    return { type: 'recipe' };
-  },
-
-  // Gestión de perfil (placeholder)
-  profile: async (userId, message, menu) => {
-    // TODO: Implementar gestión de perfil
-    await sendText(userId, 'Gestión de perfil en construcción 🔧');
-    return { type: 'profile' };
+  profile: {
+    onEnter: async (userId, menu) => {
+      // TODO: cuando esté implementado, mostrar bienvenida de perfil
+      await sendText(userId, 'Gestión de perfil en construcción 🔧');
+      await setUserState(userId, 'main_menu', { previousMenu: menu.keyName });
+      await showMenu(userId, 'main_menu');
+    },
+    onMessage: async (userId, message, menu, userState) => {
+      // TODO: procesar gestión de perfil
+    },
   },
 };
 
-/**
- * Ejecuta una acción según su tipo
- */
-async function executeAction(actionType, userId, message, menu) {
+async function enterAction(actionType, userId, menu) {
   const handler = actionHandlers[actionType];
-
   if (!handler) {
     console.warn(`⚠️ Handler no encontrado para acción: ${actionType}`);
-    return null;
+    return;
   }
+  return handler.onEnter(userId, menu);
+}
 
-  return await handler(userId, message, menu);
+async function processAction(actionType, userId, message, menu, userState) {
+  const handler = actionHandlers[actionType];
+  if (!handler) {
+    console.warn(`⚠️ Handler no encontrado para acción: ${actionType}`);
+    return;
+  }
+  return handler.onMessage(userId, message, menu, userState);
 }
 
 /**
  * Maneja mensajes entrantes de WhatsApp
- * Flujo: obtener estado → cambiar estado → mostrar menú o ejecutar acción en siguiente mensaje
  */
 async function handleIncomingMessage(body) {
   const from = body.From.replace('whatsapp:', '');
+  const normalizedUserId = from.replace(/^\+57/, '');
   const message = body.Body?.trim();
 
   if (!message) return;
 
   try {
-    // 1. Obtener estado del usuario
-    let userState = await getUserState(from);
+    // Comando especial para reiniciar estado (pruebas)
+    if (message.toLowerCase() === 'hard_reset_8080') {
+      await clearUserState(normalizedUserId);
+      await sendText(from, 'Estado reiniciado. Volviendo al menú principal.');
+      return showMenu(from, 'main_menu');
+    }
 
-    // Si es primer mensaje, inicializar en menú principal
+    // 1. Obtener estado del usuario
+    const userState = await getUserState(from);
+
+    // 2. Si es primer mensaje, inicializar
     if (!userState) {
       await initializeUser(from);
-      
-      // Enviar mensaje de bienvenida
       const welcomeMessage = `Hola! 🖐️ Soy NutriBot 🤖, tu asistente virtual de nutrición\nGracias por contactarte conmigo 😊
 
 🌟 ¡Quiero contarte algo genial! Ahora podrás hablar conmigo de manera más fácil y rápida.
 
 Solo responde con el número de la opción que deseas elegir.`;
-      
       await sendText(from, welcomeMessage);
       return showMenu(from, 'main_menu');
     }
 
-    // 2. Obtener menú actual del usuario
+    // 3. Obtener menú actual
     const currentMenu = await getMenu(userState.step);
-
     if (!currentMenu) {
       return sendText(from, '❌ Menú no disponible. Por favor intenta de nuevo.');
     }
 
-    // 3. SI EL USUARIO ESTÁ EN MODO CHAT: Procesar el mensaje con IA
-    if (currentMenu.actionType === 'chat') {
-      return await executeAction('chat', from, message, currentMenu);
-    }
-
-    // 4. SI ESTÁ EN OTRA ACCIÓN (recipe, profile): Volver al menú principal
-    // Esto evita repetir la acción si el usuario vuelve después de tiempo
+    // 4. Si el usuario ya está en una acción → delegar completamente al handler
     if (currentMenu.actionType !== 'navigate') {
-      // Estaba en recipe o profile - mostrar menú principal
-      await sendText(from, '¿En qué más puedo ayudarte? 😊');
-      await setUserState(from, 'main_menu', {});
-      return showMenu(from, 'main_menu');
+      return processAction(currentMenu.actionType, from, message, currentMenu, userState);
     }
 
-    // 5. Validar si la respuesta es una opción válida del menú
+    // 5. Flujo normal de navegación — validar opción del menú actual
     const validOption = validateMenuResponse(currentMenu, message);
-
     if (!validOption) {
-      // "No te he entendido" + repetir el menú actual
       await sendText(from, 'Perdón, no entendí tu mensaje 😅\n\nIntenta de nuevo:');
       return showMenu(from, userState.step);
     }
 
     // 6. Obtener siguiente menú
     const { option } = validOption;
-    const nextMenuKey = option.next;
-    const nextMenu = await getMenu(nextMenuKey);
-
+    const nextMenu = await getMenu(option.next);
     if (!nextMenu) {
       await sendText(from, '❌ Menú no disponible.');
       return showMenu(from, userState.step);
-
     }
 
-    // 7. PRIMERO: Actualizar estado del usuario
+    // 7. Actualizar estado
     const actionType = nextMenu.actionType || 'navigate';
-    await setUserState(from, nextMenuKey, {
+    await setUserState(from, option.next, {
       previousMenu: userState.step,
       selectedOption: option.text,
     });
 
-    // 8. Si es navegación, mostrar el siguiente menú
+    // 8. Navegación normal → mostrar siguiente menú
     if (actionType === 'navigate') {
-      return await showMenu(from, nextMenuKey);
+      return showMenu(from, option.next);
     }
 
-    // 9. Si es IA/chat, enviar mensaje de bienvenida y esperar próximo mensaje
-    if (actionType === 'chat') {
-      return await sendText(from, '¡Perfecto! 😊 Ahora ya puedes escribirme libremente sobre nutrición y te ayudaré con lo que necesites. \n\n¿Cuál es tu pregunta? 📝');
-    }
-
-    // 10. Para otras acciones, ejecutar el handler
-    const actionResult = await executeAction(actionType, from, message, nextMenu);
-
-    if (!actionResult){
-      console.log(' Acción ejecutada sin resultado específico.');
-      await sendText(from, '❌ Acción no disponible.');
-      return showMenu(from, userState.step);
-    }
+    return enterAction(actionType, from, nextMenu);
 
   } catch (error) {
     console.error('❌ Error manejando mensaje:', error);
@@ -159,25 +191,14 @@ Solo responde con el número de la opción que deseas elegir.`;
   }
 }
 
-/**
- * Muestra un menú al usuario
- * @param {string} userId - ID del usuario (número WhatsApp)
- * @param {string} menuKey - Identificador del menú a mostrar
- */
 async function showMenu(userId, menuKey) {
   try {
     const menu = await getMenu(menuKey);
-
     if (!menu) {
       return sendText(userId, '❌ Menú no disponible');
     }
-
-    // Formatear y enviar el menú
-    console.log(' Mostrando menú:', menu)
     const text = formatMenuForWhatsApp(menu);
-    console.log (' Menu formateado para WhatsApp:\n', text);
     await sendText(userId, text);
-
   } catch (error) {
     console.error('❌ Error mostrando menú:', error);
     return sendText(userId, '❌ Error mostrando el menú. Intenta de nuevo.');
