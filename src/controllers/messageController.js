@@ -26,6 +26,7 @@ const actionHandlers = {
     },
     onMessage: async (userId, message, menu, userState) => {
       // Si aún no ha recibido ninguna respuesta → todo va a la IA sin validar opciones
+      console.log('estado chat', userState)
       if (!userState.chatReady) {
         const response = await responderIA(message);
         await sendText(userId, response);
@@ -153,7 +154,8 @@ Solo responde con el número de la opción que deseas elegir.`;
 
     // 4. Si el usuario ya está en una acción → delegar completamente al handler
     if (currentMenu.actionType !== 'navigate') {
-      return processAction(currentMenu.actionType, from, message, currentMenu, userState);
+      console.log(`usuario en acción ${currentMenu.actionType} y estado ${JSON.stringify(userState)}`);
+      return processAction(currentMenu.actionType, from, message, currentMenu, userState.stepData);
     }
 
     // 5. Flujo normal de navegación — validar opción del menú actual
