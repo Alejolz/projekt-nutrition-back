@@ -10,6 +10,8 @@ const client = twilio(
  * Envía un mensaje de texto por WhatsApp
  */
 async function sendText(to, message) {
+  console.log(`Enviando mensaje desde ${config.twilio.whatsappNumber} a ${to}: ${message}`);
+  console.log(`Enviando mensaje a ${to}: ${message}`);
   return client.messages.create({
     from: `whatsapp:${config.twilio.whatsappNumber}`,
     to: `whatsapp:${to}`,
