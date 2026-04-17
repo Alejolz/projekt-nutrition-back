@@ -4,8 +4,9 @@ const {
   getUserState,
   setUserState,
   initializeUser,
-  clearUserState
+  clearUserState,
 } = require('../services/userStateService');
+const { getUserProfile } = require('../services/profileService');
 const {
   getMenu,
   formatMenuForWhatsApp,
@@ -220,13 +221,27 @@ async function handleIncomingMessage(body) {
       return;
     }
 
-    // 1. Obtener estado del usuario
+    // 1. Verificar que el usuario esté registrado (caché en memoria)
+    const profile = await getUserProfile(from);
+    if (!profile) {
+      await sendText(from, `¡Hola! 👋 Somos *NutriBot*, un asistente virtual de nutrición personalizado.
+
+Por ahora el acceso es solo para usuarios registrados. Si deseas unirte, contáctanos en soporte y te ayudamos con tu registro. 📩
+
+🚀 Estamos trabajando para que pronto puedas suscribirte directamente desde aquí. ¡Gracias por tu interés!`);
+      return;
+    }
+
+    // 2. Obtener estado del usuario
     const userState = await getUserState(from);
 
-    // 2. Si es primer mensaje, inicializar
+    // 3. Si es primer mensaje, inicializar
     if (!userState) {
+      const firstName = profile.name ? profile.name.split(' ')[0] : null;
+      const saludo = firstName ? `Hola, ${firstName}! 🖐️` : `Hola! 🖐️`;
+
       await initializeUser(from);
-      const welcomeMessage = `Hola! 🖐️ Soy NutriBot 🤖, tu asistente virtual de nutrición\nGracias por contactarte conmigo 😊
+      const welcomeMessage = `${saludo} Soy NutriBot 🤖, tu asistente virtual de nutrición\nGracias por contactarte conmigo 😊
 
 🌟 ¡Quiero contarte algo genial! Ahora podrás hablar conmigo de manera más fácil y rápida.
 

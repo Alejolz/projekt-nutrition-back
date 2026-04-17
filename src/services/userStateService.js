@@ -1,6 +1,5 @@
 /**
  * Servicio para gestionar el estado de los usuarios en la BD
- * Reemplaza la versión antigua en memoria
  */
 
 const db = require('./database');
