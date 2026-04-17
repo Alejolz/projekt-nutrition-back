@@ -6,6 +6,7 @@ const TWILIO_ACCOUNT_SID = config.twilio.accountSid;
 const TWILIO_AUTH_TOKEN = config.twilio.authToken;
 
 const MAX_INPUT_LENGTH = 1000;
+const MAX_OUTPUT_LENGTH = 1000;
 
 // Patrones de prompt injection comunes
 const INJECTION_PATTERNS = [
@@ -72,7 +73,8 @@ Reglas estrictas:
 2. Basa tus respuestas en evidencia científica actualizada.
 3. Para preguntas médicas específicas, recomienda siempre consultar a un profesional de la salud.
 4. Responde en el mismo idioma que el usuario.
-5. Sé conciso y claro, usa listas cuando sea útil.`;
+5. Sé conciso y claro, usa listas cuando sea útil.
+6. Tu respuesta final nunca debe superar ${MAX_OUTPUT_LENGTH} caracteres.`;
 
 const SYSTEM_PROMPT_IMAGEN = `Eres NutriBot Vision, un experto en análisis nutricional de alimentos a partir de imágenes. Tu único propósito es analizar fotos de alimentos, platos o bebidas y proporcionar:
 
@@ -87,7 +89,8 @@ Reglas estrictas:
 2. Siempre aclara que los valores calóricos son estimaciones visuales y pueden variar según la preparación y tamaño exacto.
 3. Si el usuario agrega contexto sobre el alimento en su mensaje, úsalo para mejorar el análisis.
 4. Responde en el mismo idioma que el usuario.
-5. Usa un formato claro con secciones, sin emojis para facilitar la lectura.`;
+5. Usa un formato claro con secciones, sin emojis para facilitar la lectura.
+6. Tu respuesta final nunca debe superar ${MAX_OUTPUT_LENGTH} caracteres.`;
 
 /**
  * Descarga una imagen desde una URL de Twilio y la convierte a base64.
@@ -167,7 +170,7 @@ async function analizarImagen(imageUrl, contentType, caption) {
       },
       { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
     );
-    return res.data.choices[0].message.content;
+
   } catch (err) {
     console.error('Error con OpenAI (imagen):', err.response?.data || err.message);
     return 'No pude analizar la imagen, intenta de nuevo.';
