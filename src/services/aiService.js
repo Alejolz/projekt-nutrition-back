@@ -170,7 +170,7 @@ async function analizarImagen(imageUrl, contentType, caption) {
       },
       { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
     );
-
+    return res.data.choices[0].message.content;
   } catch (err) {
     console.error('Error con OpenAI (imagen):', err.response?.data || err.message);
     return 'No pude analizar la imagen, intenta de nuevo.';
