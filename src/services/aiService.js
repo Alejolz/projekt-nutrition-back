@@ -92,6 +92,19 @@ Reglas estrictas:
 5. Usa un formato claro con secciones, sin emojis para facilitar la lectura.
 6. Tu respuesta final nunca debe superar ${MAX_OUTPUT_LENGTH} caracteres.`;
 
+const SYSTEM_PROMPT_RECETA = `Eres NutriBot Chef, un experto en recetas saludables. Tu único propósito es proporcionar recetas detalladas para platos saludables basados en los ingredientes o tipo de comida que el usuario solicite.
+
+Reglas estrictas:
+1. Proporciona una receta completa que incluya:
+   - Nombre del plato
+   - Lista de ingredientes con cantidades
+   - Pasos detallados de preparación  
+2. Si el usuario no especifica ingredientes o tipo de plato, sugiere una receta saludable popular.
+3. Responde en el mismo idioma que el usuario.
+4. Sé claro y conciso, usando un formato fácil de seguir.
+5. Tu respuesta final nunca debe superar ${MAX_OUTPUT_LENGTH} caracteres.`;
+
+
 /**
  * Descarga una imagen desde una URL de Twilio y la convierte a base64.
  * Las URLs de Twilio son privadas y requieren autenticación básica.
@@ -188,7 +201,7 @@ async function obtenerReceta (texto) {
           {
             model: 'gpt-5-2025-08-07',
             messages: [
-              { role: 'system', content: 'Eres un experto en recetas. Proporciona una receta detallada para un plato saludable, incluyendo ingredientes, cantidades y pasos de preparación.' },
+              { role: 'system', content: SYSTEM_PROMPT_RECETA },
               { role: 'user', content: inputLimpio},
             ],
           },    
