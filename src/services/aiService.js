@@ -115,7 +115,7 @@ async function descargarImagenTwilio(imageUrl, contentType) {
 async function responderIA(texto) {
   const inputLimpio = sanitizarInput(texto);
   if (!inputLimpio) {
-    return 'Lo siento, no pude procesar tu mensaje. Por favor intenta de nuevo con una pregunta sobre nutrición. 🥦';
+    return 'Lo siento, no pude procesar tu mensaje. Por favor intenta de nuevo con una pregunta sobre nutrición.';
   }
 
   try {
@@ -177,8 +177,35 @@ async function analizarImagen(imageUrl, contentType, caption) {
   }
 }
 
+async function obtenerReceta (texto) {
+  const inputLimpio = sanitizarInput(texto);
+  if (!inputLimpio) {
+    return 'Lo siento, no pude procesar tu mensaje. Por favor intenta de nuevo.';
+  }
+    try {
+        const res = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-5-2025-08-07',
+            messages: [
+              { role: 'system', content: 'Eres un experto en recetas. Proporciona una receta detallada para un plato saludable, incluyendo ingredientes, cantidades y pasos de preparación.' },
+              { role: 'user', content: inputLimpio},
+            ],
+          },    
+          { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
+        );
+        return res.data.choices[0].message.content;
+      } catch (err) {
+        console.error('Error con OpenAI (receta):', err.response?.data || err.message);
+        return 'No pude obtener la receta, intenta de nuevo.';
+      } 
+       
+
+}
+
 module.exports = {
   sanitizarInput,
   responderIA,
   analizarImagen,
+  obtenerReceta,
 };
